@@ -93,6 +93,25 @@ DEFAULT_CHANNELS = [
      "locks": "control:perm(Immortals);listen:perm(Admin);send:all()"}
 ]
 TYPECLASS_PATHS = ["typeclasses", "evennia", "evennia.contrib", "evennia.contrib.tutorial_examples", "world.space"]
+GAME_INDEX_LISTING = {
+    'game_status': 'pre-alpha',
+    # Optional, comment out or remove if N/A
+    #'game_website': 'http://my-game.com',
+    'short_description': 'A gritty sci-fi game set in a less-than-utopian world.',
+    # Optional but highly recommended. Markdown is supported.
+    'long_description': (
+        "Hypoxia: Enter the Void\n\n"
+        "Hypoxia is an RP encouraged MUD/MUSH set in the distant future. "
+        "Man has reached the stars, but brought corruption with him.\n\n"
+        "Custome space engine, full-featured economy system, and more to come."
+    ),
+    'listing_contact': 'stephen.vogler@gmail.com',
+    # At minimum, specify this or the web_client_url options. Both is fine, too.
+    'telnet_hostname': 'hypoxia.ddns.net',
+    'telnet_port': 4000,
+    # At minimum, specify this or the telnet_* options. Both is fine, too.
+    'web_client_url': 'http://hypoxia.ddns.net:4001/webclient/',
+}
 ######################################################################
 # Settings given in secret_settings.py override those in this file.
 ######################################################################
