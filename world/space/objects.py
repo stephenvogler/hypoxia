@@ -1,5 +1,6 @@
 from typeclasses.objects import Object
 from evennia import search_channel
+from system import *
 
 class SpaceObject(Object):
     """
@@ -10,24 +11,35 @@ class SpaceObject(Object):
         super(SpaceObject, self).at_object_creation()
         search_channel('Space')[0].msg(self.name + ' added to space system.')
         self.db.contacts = {}
-        self.db.consoles = {}
-        self.db.local = {}
-        self.db.xyhead = 0
-        self.db.zhead = 0
-        self.db.desired_xyhead = 0
-        self.db.desired_zhead = 0
-        self.db.speed = [0.0, 0.0]
-        #self.db.course = head2course(0, 0)
-        #self.db.dest = Vector3(0, 0, 0)
-        #self.db.pos = Vector3(0, 0, 0)
-        #sciscan will return what is seen when the object is scanned, Ie atmosphere composition, numbe of people, etc.
+        self.db.consoles = []
+        self.db.local = []
+        #Movement info
+        self.db.heading = {'xy':0,'z':0}
+        self.db.d_heading = {'xy':0,'z':0}
+        self.db.speed = 0.0
+        self.db.d_speed = 0.0
+        self.db.course = head2course(0, 0)
+        self.db.dest = Vector3(0, 0, 0)
+        self.db.pos = Vector3(0, 0, 0)
+        #Interaction info
         self.db.scandata = {"atmosphere":None,"lifesigns":None,"composition":None,"engineering":None}
-        self.db.pads = {}
-        self.db.docks = {}
-        self.db.airlock = None
-        #powerpool and related power items will live on PowerGrid when created
-        self.db.powerpool = 0
+        self.db.landing_pads = {}
+        self.db.docking_ports = {}
+        self.db.airlocks = {}
+        self.db.docked = None
+        #Engineering info
+        self.db.components = {"reactors":[],"powergrid":[],"engines":[],"sensors":[],"weapons":[]}
         self.tags.add(str(self), category="spaceobj")
+
+    def reset(self):
+        """Resets the object to sane defaults at 0,0,0"""
+        self.location = self.home
+        self.db.pos = Vector3(0, 0, 0)
+        self.db.speed = 0.0
+        self.db.d_speed = 0.0
+        self.db.course = head2course(0, 0)
+        self.db.heading = {'xy':0,'z':0}
+        self.db.d_heading = {'xy':0,'z':0}
 
     def at_object_delete(self):
         """
@@ -47,6 +59,88 @@ class SpaceObject(Object):
         search_channel('Space')[0].msg(
             "%s removed from space system." % (self.name))
         return 1
+
+    def position(self):
+        position = Vector3.from_points([0, 0, 0], self.db.pos)
+        x, y, z = position
+        r = sqrt(x * x + y * y + z * z)
+        xyang = round(degrees(atan2(x,y)),2)
+        try:
+            p = acos(z / r)
+        except ZeroDivisionError:
+            p = 0.0
+        distance = self.dist3d([0, 0, 0])
+        return [xyang, (round(degrees(p), 2) - 0) % 90, round(distance, 6)]
+
+    def set_pos(self, x, y, z):
+        self.db.pos = Vector3(x, y, z)
+
+    def heading(self):
+        return [self.db.heading['xy'], self.db.heading['z']]
+
+    def setheading(self, heading):
+        self.db.d_heading['xy'] = float(heading[0])
+        self.db.d_heading['z'] = float(heading[1])
+        # TODO: Fix this soon! We need actual code to determine direction of
+        # travel
+        self.ndb.rotation = "clockwise"
+        UpdateHeading(self, 1)
+
+    def speed(self):
+        return self.db.speed
+
+    def maxspeed(self):
+        # TODO: Need to add function to determine max speed
+        return 1000
+
+    def setspeed(self, speed):
+        self.db.d_speed = speed
+        UpdatePosition(self)
+
+    # default, return status. If option is provided, change status and return
+    def sensors(self, *status):
+        if status:
+            self.db.sensors = status
+        self.db.sensors
+
+    def sensor_range(self):
+        """
+        Hardcoded sensor range for now.
+        """
+        return 40000000
+    def semote(self, msg):
+        """
+        Broadcasts action to sensors of other spaceobjs
+        """
+        #will need to limit this to objects that have the target on screen or some other way of actually seeing it
+        self.location.msg_contents("%s %s" % (self, msg))
+
+    def tflag(self):
+        return "|yU|n"
+
+    def dist3d(self, contact):
+        x, y, z = self.db.pos
+        try:
+            xx, yy, zz = contact.db.pos
+        except:
+            xx, yy, zz = contact
+        dx = x - xx
+        dy = y - yy
+        dz = z - zz
+        return sqrt(dx * dx + dy * dy + dz * dz)
+
+    #returns relative bearing to spaceobj
+    def bearing_to(self, contact):
+        vector = Vector3.from_points(self.db.pos, contact.db.pos)
+        x, y, z = vector
+        r = sqrt(x * x + y * y + z * z)
+        xyang = (round(degrees(atan2(x, y)),2) - self.db.heading['xy']) % 360
+        if xyang > 180:
+            xyang -=360
+        zang = (round(degrees(atan2(z, sqrt(x * x + y * y))),2) - self.db.heading['z']) % 360
+        if zang > 180:
+            zang -=360
+        return [xyang, zang]
 
 class Ship(SpaceObject):
     def at_object_creation(self):

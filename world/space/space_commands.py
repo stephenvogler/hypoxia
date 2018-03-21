@@ -17,11 +17,11 @@ class CmdBoard(Command):
             return
         elif not inherits_from(ship, 'world.space.objects.SpaceObject'):
             return self.caller.msg("You can't board %s!" % ship)
-        elif not ship.db.board_room:
+        elif not ship.db.airlock:
             return self.caller.msg("|rError trying to board |C%s|r. Please let a staff member know.|n" % ship)
         else:
             self.caller.notify_location("You board %s." % ship, "%s boards %s." % (self.caller, ship))
-            self.caller.move_to(ship.db.board_room, quiet=True)
+            self.caller.move_to(ship.db.airlock, quiet=True)
             self.caller.location.msg_contents("%s arrives from outside." % self.caller.name, exclude=self.caller)
 
 class CmdSpaceobj(default_cmds.MuxCommand):
