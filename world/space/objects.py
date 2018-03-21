@@ -10,8 +10,8 @@ class SpaceObject(Object):
         super(SpaceObject, self).at_object_creation()
         search_channel('Space')[0].msg(self.name + ' added to space system.')
         self.db.contacts = {}
-        self.db.consoles = []
-        self.db.local = []
+        self.db.consoles = {}
+        self.db.local = {}
         self.db.xyhead = 0
         self.db.zhead = 0
         self.db.desired_xyhead = 0
@@ -21,11 +21,10 @@ class SpaceObject(Object):
         #self.db.dest = Vector3(0, 0, 0)
         #self.db.pos = Vector3(0, 0, 0)
         #sciscan will return what is seen when the object is scanned, Ie atmosphere composition, numbe of people, etc.
-        self.db.sciscan = []
-        #Change pads and docks to a function that checks .db.local and looks for typeclass
+        self.db.scandata = {"atmosphere":None,"lifesigns":None,"composition":None,"engineering":None}
         self.db.pads = {}
         self.db.docks = {}
-        self.db.board_room = None
+        self.db.airlock = None
         #powerpool and related power items will live on PowerGrid when created
         self.db.powerpool = 0
         self.tags.add(str(self), category="spaceobj")
