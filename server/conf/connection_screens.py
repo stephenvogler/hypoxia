@@ -20,7 +20,14 @@ from evennia import utils
 
 CONNECTION_SCREEN = """
 |Y==============================================================|n
- Welcome to |G{}|n
+|G                              _
+  /\  /\_   _ _ __   _____  _(_) __ _
+ / /_/ / | | | '_ \ / _ \ \/ / ||/ _` |
+/ __  /| ||_| | ||_) | (_) >  <| | (_| |
+\/ /_/  \__, | .__/ \___/_/\_\_|\__,_|
+        ||___/||_|
+        
+ |nWelcome to |G{}|n
  Running Evennia, version {}
 
  If you have an existing account, connect to it by typing:
