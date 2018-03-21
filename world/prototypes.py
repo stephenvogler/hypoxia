@@ -35,7 +35,32 @@ Possible keywords are:
 See the `@spawn` command and `evennia.utils.spawner` for more info.
 
 """
+SPACEOBJ = {
+"key": "A generic space object",
+"typeclass": "world.space.objects.SpaceObject",
+}
 
+SHIP = {
+"prototype": "SPACEOBJ",
+"key": "A generic ship",
+"tags": "ship",
+"can_move": True,
+"size": 5,
+}
+
+SHUTTLE = {
+"prototype": "SHIP",
+"key": "A small shuttle",
+"size": 1,
+}
+
+STATION = {
+"prototype": "SPACEOBJ",
+"key": "A generic space station",
+"tags": "station",
+"can_move": False,
+"size": 10,
+}
 #from random import randint
 #
 # GOBLIN = {

@@ -1,5 +1,7 @@
 from evennia import Command, default_cmds, search_tag, search_channel
 from evennia.utils.utils import inherits_from
+from evennia.utils.create import create_object
+from world.space.objects import *
 
 class CmdBoard(Command):
     """
@@ -40,8 +42,6 @@ class CmdSpaceobj(default_cmds.MuxCommand):
     help_category = 'Space'
 
     def create_spaceobj(self, name, spaceobj):
-        from evennia.utils.create import create_object
-        from world.space.objects import *
 
         try:
             # One entry for each type of spaceobj that can be created
