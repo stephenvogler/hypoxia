@@ -8,7 +8,8 @@ creation commands.
 
 """
 from evennia import DefaultCharacter
-
+from evennia.utils import lazy_property
+from world.traits import TraitHandler
 
 class Character(DefaultCharacter):
     """
@@ -38,6 +39,10 @@ class Character(DefaultCharacter):
         self.db.org = None
         self.db.rank = None
         self.db.hidden = False
+
+    @lazy_property
+    def traits(self):
+        return TraitHandler(self)
 
     def unfindable(self):
         return self.db.hidden

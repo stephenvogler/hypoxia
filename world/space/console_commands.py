@@ -3,6 +3,7 @@ from evennia import Command, utils
 #from objects import *
 import re
 from world.space.objects import *
+from evennia.utils.utils import inherits_from
 
 class CmdMan(Command):
     """
@@ -98,15 +99,15 @@ class CmdNavset(Command):
 
     def func(self):
         cmode = self.console_mode
-        console = self.caller.db.console
+        console = self.obj
         spaceobj = console.db.spaceobj
 
         if self.mode == "speed":
             if re.match("^[\d]+(\.\d+)?%?$", self.args):
                 self.args = float(self.args.strip("%"))
-                if self.args > 200:
+                if self.args > 120:
                     console.notify(
-                        "You cannot exceed 200% of the maximum rated setting.")
+                        "You cannot exceed 120% of the maximum rated setting.")
                     return
                 cspeed = spaceobj.db.speed
                 mspeed = spaceobj.maxspeed()
@@ -140,8 +141,8 @@ class CmdNavset(Command):
             match = re.match(
                 "^([-\+]?\d+(\.\d+)?)([-\+]\d+(\.\d+)?)$", self.args)
             if match:
-                heading = [(round(float(match.group(1)), 2) + spaceobj.db.xyhead + 360) %
-                           360, (round(float(match.group(3)), 2) + spaceobj.db.zhead + 360) % 360]
+                heading = [(round(float(match.group(1)), 2) + spaceobj.db.heading['xy'] + 360) %
+                           360, (round(float(match.group(3)), 2) + spaceobj.db.heading['z'] + 360) % 360]
                 console.notify("Bringing the ship to %s." %
                                format_bearing(heading), cmode)
                 spaceobj.setheading(heading)
@@ -180,41 +181,6 @@ class CmdNavstat(Command):
             format_heading(heading), format_speed(speed))
         self.caller.msg(header + string)
 
-
-class CmdSensors(Command):
-    """
-    Usage:
-        sensors <off || on>
-
-    Turns sensors off or on.
-    This command will be expanded soon to choose the sensor array and set options!
-    """
-    key = 'sensors'
-    locks = 'cmd:is_operator()'
-    help_category = 'Console'
-
-    def func(self):
-        console = self.obj
-        if 'on' in self.args:
-            if self.obj.db.spaceobj.db.sensors == True:
-                console.notify('Sensors are already on')
-                return
-            self.obj.db.spaceobj.db.sensors = True
-            console.notify('Sensors turned |gon','helm')
-            UpdateSensors(self.obj.db.spaceobj)
-            return
-        elif 'off' in self.args:
-            if self.obj.db.spaceobj.db.sensors == False:
-                console.notify('Sensors are already off')
-                return
-            self.obj.db.spaceobj.db.sensors = False
-            console.notify('Sensors turned |roff','helm')
-            return
-        else:
-            self.caller.msg('Syntax: sensors <on | off>')
-            return
-
-
 class CmdSrep(Command):
     """
     Usage:
@@ -235,13 +201,13 @@ class CmdSrep(Command):
 
     def func(self):
         spaceobj = self.obj.db.spaceobj
-        if not spaceobj.db.sensors:
+        if not spaceobj.systems.sensors.online():
             self.caller.db.console.notify("Sensors are offline.")
             return
-        header = '|[B|w[|ySensor Report|w]|n\n'
+        header = '|[B|w[|ySensor Report|w]|n Max Range: {}\n'.format(format_distance(spaceobj.sensor_range()))
         header += '|C-' * 78 + '\n' + '|c%1s %-20s %-22s %-14s%-12s %-7s' % (
             'T', 'Contact', 'ID', 'Bearing', 'Range', 'Speed') + '\n' + '|C-' * 78
-        sort_list = sorted(spaceobj.db.contacts.keys(), key=lambda o:o.dist3d(self.obj.db.spaceobj))
+        sort_list = sorted(spaceobj.systems.sensors.contacts.keys(), key=lambda o:o.dist3d(self.obj.db.spaceobj))
         contacts = ''
         for contact in sort_list:
             try:
@@ -249,13 +215,100 @@ class CmdSrep(Command):
                                                                            contact.name, "[" + contact.name + "]",
                                                                            format_heading(spaceobj.bearing_to(
                                                                                contact)),
-                                                                           convert_distance(spaceobj.dist3d(
+                                                                           format_distance(spaceobj.dist3d(
                                                                                contact)),
                                                                            contact.db.speed)
             except:
                 # if we can't run that, it shouldn't be in here!
                 self.caller.msg("Error!")
                 del spaceobj.db.contacts[contact]
-
+        if not contacts:
+            contacts = "\n|rNo contacts|n"
         footer = '\n' + '|C-' * 78
         self.caller.msg(header + contacts + footer)
+
+class CmdEngstat(Command):
+    key = 'engstat'
+    locks = 'cmd:is_operator()'
+    def func(self):
+        spaceobj = self.obj.db.spaceobj
+        header = "|Y-" * 78
+        producers = ""
+        routers = ""
+        consumers = ""
+        footer = "|Y-" * 78
+        for system in spaceobj.systems.all:
+            system = spaceobj.systems.get(system)
+            if system.destroyed():
+                string = "|x{}: |RDESTROYED\n".format(system.name)
+            else:
+                string = "{}{}:|n {} / {}\n".format('|w' if system.online() else '|R', system.name, system.current_power, system.max_power)
+            if system._data['type'] == 'producer':
+                producers += string
+            elif system._data['type'] == 'router':
+                routers += string
+            elif system._data['type'] == 'consumer':
+                consumers += string
+        #for system in systems:
+            #string += "{}: {} / {} ({})".format(system.name, system.actual, system.max, system.percent)
+        self.caller.msg(header + "\n|[B|w[|yPower Production|w]|n\n{}|[B|w[|yRouting|w]|n\n{}{}\n|[B|w[|ySystems|w]|n\n{}".format(producers, routers, '|G-' * 78, consumers) + footer)
+class CmdFuelstat(Command):
+    key = 'fuelstat'
+    locks = 'cmd:is_operator()'
+    def func(self):
+        spaceobj = self.obj.db.spaceobj
+        matter = spaceobj.systems.matter_storage
+        antimatter = spaceobj.systems.antimatter_storage
+        return self.caller.msg("{}: {} / {}: {}".format(matter.name, matter.fuel, antimatter.name, antimatter.fuel))
+
+class CmdEngset(Command):
+    key = 'engset'
+    locks = 'cmd:is_operator()'
+    def parse(self):
+        if 'power' in self.args:
+            self.mode = 'power'
+            self.system = None
+            system = find_system(self.obj.db.spaceobj, self.args.lstrip('power ').rstrip('0123456789').strip())
+            try:
+                self.setting = int(filter(str.isdigit, str(self.args)))
+            except:
+                self.setting = None
+            if system == -1:
+                return self.caller.msg("Ambiguous match. Please be more specific.")
+            elif not system:
+                return self.caller.msg("Unknown system, please try again.")
+            else:
+                self.system = system
+        else:
+            self.mode = None
+
+    def func(self):
+        console = self.obj
+        if self.mode == 'power':
+            if not self.system:
+                return
+            if not self.setting == None:
+                if self.system.destroyed():
+                    return console.notify("Unable to comply. |R{}: Destroyed|n".format(self.system.name))
+                if self.setting > 100:
+                    return console.notify("You cannot exceed 100% of max power.")
+                if self.system.set_power == self.setting:
+                    return console.notify("{} already set to {}%".format(self.system.name, self.setting))
+                self.system.set_power = self.system.max_power * self.setting / 100
+                console.notify("{} set to {}%".format(self.system.name, self.setting))
+                UpdatePower(console.db.spaceobj)
+            else:
+                console.notify("{}: {}/{}".format(self.system.name, self.system.current_power, self.system.max_power))
+        else:
+            return self.caller.msg("Try 'help engset'.")
+
+def find_system(spaceobj, target_system):
+    systems = []
+    for system in spaceobj.systems.all:
+        if target_system in spaceobj.systems.get(system).name.lower():
+            systems.append(str(system))
+    if systems:
+        system = spaceobj.systems.get(systems[0])
+        return system
+    else:
+        return 0

@@ -32,7 +32,7 @@ from evennia.settings_default import *
 ######################################################################
 
 # This is the name of your game. Make it catchy!
-SERVERNAME = "Hypoxia: Enter the Void"
+SERVERNAME = "Hypoxia"
 
 # Server ports. If enabled and marked as "visible", the port
 # should be visible to the outside world on a production server.
@@ -101,9 +101,10 @@ GAME_INDEX_LISTING = {
     # Optional but highly recommended. Markdown is supported.
     'long_description': (
         "Hypoxia: Enter the Void\n\n"
-        "Hypoxia is an RP encouraged MUD/MUSH set in the distant future. "
-        "Man has reached the stars, but brought corruption with him.\n\n"
-        "Custome space engine, full-featured economy system, and more to come."
+        "A gritty sci-fi game set in the distant, not-so-utopian future "
+        "where man has reached the stars, and brought corruption with him.\n\n"
+        "Featuring a custom 3d space simulator, a realistic economy sytem, "
+        "and a friendly RP-encouraged environment."
     ),
     'listing_contact': 'stephen.vogler@gmail.com',
     # At minimum, specify this or the web_client_url options. Both is fine, too.

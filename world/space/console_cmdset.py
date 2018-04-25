@@ -12,6 +12,9 @@ class DefaultConsole(CmdSet):
         Called when the cmdset is created.
         """
         self.add(CmdMode())
+        self.add(CmdEngstat())
+        self.add(CmdEngset())
+        self.add(CmdFuelstat())
 
 #I know, I know ... a command in cmdset...
 class CmdMode(Command):
@@ -80,6 +83,5 @@ class HelmConsole(CmdSet):
         """
         self.add(CmdNavset())
         self.add(CmdNavstat())
-        self.add(CmdSensors())
         self.add(CmdSrep())
         self.add(CmdLand())

@@ -1,6 +1,8 @@
 from typeclasses.objects import Object
 from evennia import search_channel
-from system import *
+from evennia.utils import lazy_property
+from world.space.systems import *
+from world.space.templates import apply_template
 
 class SpaceObject(Object):
     """
@@ -10,7 +12,7 @@ class SpaceObject(Object):
     def at_object_creation(self):
         super(SpaceObject, self).at_object_creation()
         search_channel('Space')[0].msg(self.name + ' added to space system.')
-        self.db.contacts = {}
+        self.db.spaceframe = None
         self.db.consoles = []
         self.db.local = []
         #Movement info
@@ -27,9 +29,11 @@ class SpaceObject(Object):
         self.db.docking_ports = {}
         self.db.airlocks = {}
         self.db.docked = None
-        #Engineering info
-        self.db.components = {"reactors":[],"powergrid":[],"engines":[],"sensors":[],"weapons":[]}
         self.tags.add(str(self), category="spaceobj")
+
+    @lazy_property
+    def systems(self):
+        return SystemHandler(self)
 
     def reset(self):
         """Resets the object to sane defaults at 0,0,0"""
@@ -45,13 +49,13 @@ class SpaceObject(Object):
         """
         Clean up.
         """
-        other = SpaceObject.objects.all_family()
+        other = self.location.contents
         for other in other:
-            if self in other.db.contacts:
+            if other.db.spaceframe and self in other.systems.sensors.contacts:
                 for console in other.db.consoles:
                     if "helm" in console.db.current_modes:
                         console.notify("Lost contact: %s" % (self))
-                other.db.contacts.remove(self)
+                del other.systems.sensors.contacts[self]
         for console in self.db.consoles:
             console.db.spaceobj = None
         for room in self.db.local:
@@ -59,18 +63,18 @@ class SpaceObject(Object):
         search_channel('Space')[0].msg(
             "%s removed from space system." % (self.name))
         return 1
-
     def position(self):
-        position = Vector3.from_points([0, 0, 0], self.db.pos)
-        x, y, z = position
+        vector = Vector3.from_points([0,0,0], self.db.pos)
+        x, y, z = vector
         r = sqrt(x * x + y * y + z * z)
-        xyang = round(degrees(atan2(x,y)),2)
-        try:
-            p = acos(z / r)
-        except ZeroDivisionError:
-            p = 0.0
+        xyang = (round(degrees(atan2(x, y)),2)) % 360
+        if xyang > 180:
+            xyang -=360
+        zang = (round(degrees(atan2(z, sqrt(x * x + y * y))),2)) % 360
+        if zang > 180:
+            zang -=360
         distance = self.dist3d([0, 0, 0])
-        return [xyang, (round(degrees(p), 2) - 0) % 90, round(distance, 6)]
+        return [xyang, zang, round(distance, 6)]
 
     def set_pos(self, x, y, z):
         self.db.pos = Vector3(x, y, z)
@@ -81,22 +85,30 @@ class SpaceObject(Object):
     def setheading(self, heading):
         self.db.d_heading['xy'] = float(heading[0])
         self.db.d_heading['z'] = float(heading[1])
-        # TODO: Fix this soon! We need actual code to determine direction of
-        # travel
-        self.ndb.rotation = "clockwise"
+
         UpdateHeading(self, 1)
+
+    def move_to_coord(self,xyhead, zhead, distance):
+        self.db.pos = Vector3(head2course(xyhead, zhead)).scale(distance)
 
     def speed(self):
         return self.db.speed
 
     def maxspeed(self):
         # TODO: Need to add function to determine max speed
-        return 1000
+        return 100
 
     def setspeed(self, speed):
         self.db.d_speed = speed
         UpdatePosition(self)
 
+    def powerpool(self):
+        powerpool = 0
+        for system in self.systems.all:
+            system = self.systems[system]
+            if system._data['type'] == 'producer':
+                powerpool += system.current_power
+        return powerpool
     # default, return status. If option is provided, change status and return
     def sensors(self, *status):
         if status:
@@ -107,7 +119,7 @@ class SpaceObject(Object):
         """
         Hardcoded sensor range for now.
         """
-        return 40000000
+        return self.systems.sensors.current_power * 0.00003 * self.systems.sensors.health()
     def semote(self, msg):
         """
         Broadcasts action to sensors of other spaceobjs
@@ -146,11 +158,13 @@ class Ship(SpaceObject):
     def at_object_creation(self):
         super(Ship, self).at_object_creation()
         self.tags.add(str(self), category="ship")
+        apply_template(self, 'DefaultShip')
 
 class Station(SpaceObject):
     def at_object_creation(self):
         super(Station, self).at_object_creation()
         self.tags.add(str(self), category="station")
+        apply_template(self, 'DefaultStation')
 
 class Console(Object):
     """
@@ -232,7 +246,7 @@ class Console(Object):
 
     def notify(self, msg, *args):
         try:
-            self.db.operator.msg('|b<|C%s|b>|w: |n%s' % (self.name, msg))
+            self.db.operator.msg('|w<|g{}: |b{}|w>'.format(self.name.title(), msg))
         except:
             return
         if args:
